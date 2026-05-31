@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="買い物メモ">
+  <meta name="theme-color" content="#3D6B4F">
+  <title>買い物メモ</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="01.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="01.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="01.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-top">
+      <span class="header-title">買い物メモ</span>
+      <button class="header-icon-btn" id="searchBtn" title="検索" aria-label="検索">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="header-icon-btn" id="sortBtn" title="並び替え" aria-label="並び替え">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Search bar (hidden by default) -->
+    <div id="searchBar" class="hidden" style="padding:8px 0 12px;">
+      <input class="form-input" type="search" id="searchInput" placeholder="商品を検索..." autocomplete="off">
+    </div>
+  </header>
+
+  <!-- Sort mode bar -->
+  <div class="sort-mode-bar" id="sortModeBar">
+    <span class="sort-mode-label">並び替えモード — ドラッグで移動</span>
+    <button class="sort-done-btn" id="sortDoneBtn">完了</button>
+  </div>
+
+  <!-- Tab Navigation -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="products">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      商品
+    </button>
+    <button class="tab-btn" data-tab="shopping">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      リスト
+    </button>
+    <button class="tab-btn" data-tab="templates">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+      テンプレ
+    </button>
+    <button class="tab-btn" data-tab="prices">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>
+      価格
+    </button>
+    <button class="tab-btn" data-tab="settings">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      設定
+    </button>
+  </nav>
+
+  <!-- ── Products Page ── -->
+  <div class="page active" id="page-products">
+    <div class="filter-row" id="categoryFilter"></div>
+    <div class="product-list" id="productList"></div>
+    <div class="empty-state hidden" id="productEmpty">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <p>商品がまだ登録されていません。<br>＋ボタンで追加しましょう。</p>
+    </div>
+  </div>
+
+  <!-- ── Shopping List Page ── -->
+  <div class="page" id="page-shopping">
+    <div class="section-header">
+      <span class="section-title">今日買うもの</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm btn-outline" id="shareListBtn" style="width:auto;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          共有
+        </button>
+        <button class="btn btn-sm btn-outline" id="clearDoneBtn" style="width:auto;">完了を削除</button>
+      </div>
+    </div>
+    <div class="shopping-section" id="shoppingList"></div>
+    <div class="empty-state hidden" id="shoppingEmpty">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      <p>買い物リストが空です。<br>商品タブから追加してください。</p>
+    </div>
+  </div>
+
+  <!-- ── Templates Page ── -->
+  <div class="page" id="page-templates">
+    <div class="template-list" id="templateList"></div>
+    <div class="empty-state hidden" id="templateEmpty">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/></svg>
+      <p>テンプレートがまだありません。<br>＋ボタンで作成しましょう。</p>
+    </div>
+  </div>
+
+  <!-- ── Prices Page ── -->
+  <div class="page" id="page-prices">
+    <div class="price-list" id="priceList"></div>
+    <div class="empty-state hidden" id="priceEmpty">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>
+      <p>価格情報がまだありません。<br>商品に価格を登録してください。</p>
+    </div>
+  </div>
+
+  <!-- ── Settings Page ── -->
+  <div class="page" id="page-settings">
+    <div class="settings-section">
+      <div>
+        <div class="section-header"><span class="section-title">カテゴリ管理</span></div>
+        <div class="tag-list" id="categoryList"></div>
+        <div class="add-tag-row mt-2">
+          <input class="form-input" type="text" id="newCategoryInput" placeholder="新しいカテゴリ名">
+          <button class="btn btn-sm btn-primary" style="width:auto;" id="addCategoryBtn">追加</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-header"><span class="section-title">店舗管理</span></div>
+        <div class="tag-list" id="storeList"></div>
+        <div class="add-tag-row mt-2">
+          <input class="form-input" type="text" id="newStoreInput" placeholder="新しい店舗名">
+          <button class="btn btn-sm btn-primary" style="width:auto;" id="addStoreBtn">追加</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="section-header"><span class="section-title">データ管理</span></div>
+        <div class="settings-item" id="exportBtn">
+          <div class="settings-item-icon green">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <span class="settings-item-label">バックアップ（エクスポート）</span>
+          <span class="settings-item-chevron">›</span>
+        </div>
+        <div class="settings-item" id="importBtn">
+          <div class="settings-item-icon orange">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <span class="settings-item-label">復元（インポート）</span>
+          <span class="settings-item-chevron">›</span>
+        </div>
+        <input type="file" id="importFileInput" accept=".json" class="hidden">
+        <div class="settings-item" id="clearAllBtn">
+          <div class="settings-item-icon red">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          </div>
+          <span class="settings-item-label">全データを削除</span>
+          <span class="settings-item-chevron">›</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" id="fabBtn" aria-label="新規追加">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+
+</div><!-- /#app -->
+
+<!-- ══════════ MODALS ══════════ -->
+
+<!-- Add/Edit Product Modal -->
+<div class="modal-overlay" id="productModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title" id="productModalTitle">商品を追加</h2>
+
+    <div class="form-group">
+      <label class="form-label">商品画像</label>
+      <div class="img-upload-area" id="imgUploadArea">
+        <input type="file" id="imgFileInput" accept="image/*">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span>タップして画像を選択</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">商品名 <span style="color:var(--danger)">*</span></label>
+      <input class="form-input" type="text" id="productNameInput" placeholder="例：猫砂、牛乳">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">カテゴリ</label>
+      <select class="form-select" id="productCategorySelect">
+        <option value="">-- カテゴリなし --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">メモ</label>
+      <textarea class="form-textarea" id="productMemoInput" placeholder="例：青パッケージ、7Lタイプ、無糖"></textarea>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn btn-primary" id="saveProductBtn">保存する</button>
+      <button class="btn btn-outline" id="deleteProductBtn" style="display:none;color:var(--danger);border-color:var(--danger);">この商品を削除</button>
+      <button class="btn btn-outline" id="cancelProductBtn">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Template Modal -->
+<div class="modal-overlay" id="templateModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title" id="templateModalTitle">テンプレートを作成</h2>
+
+    <div class="form-group">
+      <label class="form-label">テンプレート名 <span style="color:var(--danger)">*</span></label>
+      <input class="form-input" type="text" id="templateNameInput" placeholder="例：猫セット、サプリセット">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">含める商品</label>
+      <div id="templateProductChecks" style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;padding:8px;background:var(--surface2);border-radius:var(--radius-sm);"></div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn btn-primary" id="saveTemplateBtn">保存する</button>
+      <button class="btn btn-outline" id="deleteTemplateBtn" style="display:none;color:var(--danger);border-color:var(--danger);">このテンプレートを削除</button>
+      <button class="btn btn-outline" id="cancelTemplateBtn">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- Price Modal -->
+<div class="modal-overlay" id="priceModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title" id="priceModalTitle">価格を登録</h2>
+
+    <div class="form-group">
+      <label class="form-label">店舗</label>
+      <select class="form-select" id="priceStoreSelect">
+        <option value="">-- 店舗を選択 --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">価格（円）</label>
+      <input class="form-input" type="number" id="priceAmountInput" placeholder="例：598" min="0">
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn btn-primary" id="savePriceBtn">保存する</button>
+      <button class="btn btn-outline" id="cancelPriceBtn">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title">買い物リストを共有</h2>
+    <div class="share-preview" id="sharePreview"></div>
+    <div class="modal-btns" style="margin-top:20px;">
+      <button class="btn btn-primary" id="doShareBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        共有する
+      </button>
+      <button class="btn btn-outline" id="cancelShareBtn">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle">確認</div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="btn btn-outline btn-sm" id="confirmCancelBtn">キャンセル</button>
+      <button class="btn btn-danger btn-sm" id="confirmOkBtn">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
