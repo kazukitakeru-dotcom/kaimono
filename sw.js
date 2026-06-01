@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kaimono-memo-v1';
+const CACHE_NAME = 'kaimono-memo-v2';
 const ASSETS = [
   './index.html',
   './styles.css',
