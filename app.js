@@ -116,7 +116,6 @@ async function loadAll() {
     dbAll(STORES.prices),
     dbAll(STORES.shoppingList),
   ]);
-  // Sort by order field
   products.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   categories.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
@@ -158,7 +157,6 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
 
-// Close modals on overlay click
 document.querySelectorAll('.modal-overlay').forEach((overlay) => {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.classList.remove('open');
@@ -175,7 +173,6 @@ document.querySelectorAll('.tab-btn').forEach((btn) => {
     document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
     document.getElementById('page-' + tab).classList.add('active');
 
-    // FAB visibility
     const fab = document.getElementById('fabBtn');
     const sortBtn = document.getElementById('sortBtn');
     if (tab === 'products' || tab === 'templates') {
@@ -234,6 +231,7 @@ sortBtn.addEventListener('click', () => {
   } else {
     exitSortMode();
   }
+  renderProducts();
 });
 
 sortDoneBtn.addEventListener('click', exitSortMode);
@@ -242,6 +240,23 @@ function exitSortMode() {
   sortMode = false;
   sortModeBar.classList.remove('visible');
   document.getElementById('productList').classList.remove('sort-mode');
+  renderProducts();
+}
+
+// ── 並び替え: 矢印ボタンで上下移動 ──
+async function moveProduct(id, dir) {
+  const idx = products.findIndex((p) => p.id === id);
+  if (idx < 0) return;
+  const targetIdx = idx + dir;
+  if (targetIdx < 0 || targetIdx >= products.length) return;
+  // swap
+  [products[idx], products[targetIdx]] = [products[targetIdx], products[idx]];
+  // save order
+  for (let i = 0; i < products.length; i++) {
+    products[i].order = i;
+    await dbPut(STORES.products, products[i]);
+  }
+  renderProducts();
 }
 
 // ── RENDER: Products ──
@@ -262,15 +277,23 @@ function renderProducts() {
   }
   empty.classList.add('hidden');
 
-  list.innerHTML = filtered.map((p) => {
+  list.innerHTML = filtered.map((p, i) => {
     const cat = categories.find((c) => c.id === p.categoryId);
     const cheapest = getCheapestPrice(p.id);
     const inList = shoppingList.some((s) => s.productId === p.id && !s.done);
+    const isFirst = i === 0;
+    const isLast = i === filtered.length - 1;
 
-    return `<div class="product-card animate-in" data-id="${p.id}" draggable="${sortMode}">
-      <div class="drag-handle" title="ドラッグして並び替え">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-      </div>
+    return `<div class="product-card animate-in" data-id="${p.id}">
+      ${sortMode ? `
+      <div class="sort-arrows">
+        <button class="sort-arrow-btn" data-move-id="${p.id}" data-dir="-1" ${isFirst ? 'disabled' : ''} title="上へ">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+        <button class="sort-arrow-btn" data-move-id="${p.id}" data-dir="1" ${isLast ? 'disabled' : ''} title="下へ">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>` : ''}
       <div class="product-thumb">
         ${p.imageDataUrl ? `<img src="${p.imageDataUrl}" alt="${escHtml(p.name)}">` : iconImage()}
       </div>
@@ -283,26 +306,24 @@ function renderProducts() {
         ${cheapest ? `<div class="product-cheapest">最安値 ${escHtml(cheapest.storeName)} ${cheapest.price.toLocaleString()}円</div>` : ''}
       </div>
       <div class="product-actions">
-        <button class="add-to-list-btn ${inList ? 'in-list' : ''}" data-id="${p.id}" title="${inList ? 'リストに追加済み' : 'リストに追加'}">
+        ${!sortMode ? `<button class="add-to-list-btn ${inList ? 'in-list' : ''}" data-id="${p.id}" title="${inList ? 'リストに追加済み' : 'リストに追加'}">
           ${inList
             ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
             : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`
           }
-        </button>
+        </button>` : ''}
       </div>
     </div>`;
   }).join('');
 
-  // Card click → edit
   list.querySelectorAll('.product-card').forEach((card) => {
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.add-to-list-btn') || e.target.closest('.drag-handle')) return;
+      if (e.target.closest('.add-to-list-btn') || e.target.closest('.sort-arrow-btn')) return;
       if (sortMode) return;
       openProductModal(card.dataset.id);
     });
   });
 
-  // Add to list btn
   list.querySelectorAll('.add-to-list-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -310,13 +331,11 @@ function renderProducts() {
     });
   });
 
-  // Drag-and-drop sort
-  initDragSort(list, '.product-card', (orderedIds) => {
-    orderedIds.forEach((id, i) => {
-      const p = products.find((x) => x.id === id);
-      if (p) { p.order = i; dbPut(STORES.products, p); }
+  list.querySelectorAll('.sort-arrow-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      moveProduct(btn.dataset.moveId, parseInt(btn.dataset.dir, 10));
     });
-    products.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   });
 }
 
@@ -558,7 +577,6 @@ function renderPrices() {
 
 // ── RENDER: Settings ──
 function renderSettings() {
-  // Categories
   const catList = document.getElementById('categoryList');
   catList.innerHTML = categories.map((c) => `
     <div class="tag-chip">
@@ -582,7 +600,6 @@ function renderSettings() {
     });
   });
 
-  // Stores
   const stList = document.getElementById('storeList');
   stList.innerHTML = storeNames.map((s) => `
     <div class="tag-chip">
@@ -632,8 +649,65 @@ function openProductModal(id) {
   sel.innerHTML = `<option value="">-- カテゴリなし --</option>` +
     categories.map((c) => `<option value="${c.id}" ${p && p.categoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('');
 
+  // 価格セクション：店舗ごとに入力欄を表示
+  renderProductPriceSection(id);
+
   openModal('productModal');
   setTimeout(() => document.getElementById('productNameInput').focus(), 300);
+}
+
+// 商品モーダル内の価格設定セクション
+function renderProductPriceSection(productId) {
+  const section = document.getElementById('productPriceSection');
+  if (!storeNames.length) {
+    section.innerHTML = `<p style="font-size:13px;color:var(--text-muted);padding:8px 0;">設定タブで店舗を先に追加してください。</p>`;
+    return;
+  }
+
+  const productPrices = productId ? prices.filter((pr) => pr.productId === productId) : [];
+
+  section.innerHTML = storeNames.map((s) => {
+    const existing = productPrices.find((pr) => pr.storeId === s.id);
+    return `<div class="price-input-row">
+      <span class="price-input-store">${escHtml(s.name)}</span>
+      <div class="price-input-wrap">
+        <input class="form-input price-inline-input" type="number" min="0"
+          data-store-id="${s.id}"
+          placeholder="未登録"
+          value="${existing ? existing.price : ''}">
+        <span class="price-input-yen">円</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// 商品保存時に価格も一緒に保存
+async function saveProductPrices(productId) {
+  const inputs = document.querySelectorAll('.price-inline-input');
+  for (const input of inputs) {
+    const storeId = input.dataset.storeId;
+    const val = input.value.trim();
+    const existing = prices.find((pr) => pr.productId === productId && pr.storeId === storeId);
+
+    if (val === '' || val === null) {
+      // 空なら既存を削除
+      if (existing) {
+        prices = prices.filter((pr) => pr.id !== existing.id);
+        await dbDelete(STORES.prices, existing.id);
+      }
+    } else {
+      const amount = parseInt(val, 10);
+      if (isNaN(amount) || amount < 0) continue;
+      if (existing) {
+        existing.price = amount;
+        await dbPut(STORES.prices, existing);
+      } else {
+        const pr = { id: uid(), productId, storeId, price: amount };
+        prices.push(pr);
+        await dbPut(STORES.prices, pr);
+      }
+    }
+  }
 }
 
 document.getElementById('imgUploadArea').addEventListener('click', () => {
@@ -663,6 +737,8 @@ document.getElementById('saveProductBtn').addEventListener('click', async () => 
   const categoryId = document.getElementById('productCategorySelect').value;
   const memo = document.getElementById('productMemoInput').value.trim();
 
+  let savedProductId;
+
   if (editingProductId) {
     const p = products.find((x) => x.id === editingProductId);
     p.name = name;
@@ -670,13 +746,17 @@ document.getElementById('saveProductBtn').addEventListener('click', async () => 
     p.memo = memo;
     p.imageDataUrl = pendingImageDataUrl || p.imageDataUrl || null;
     await dbPut(STORES.products, p);
+    savedProductId = editingProductId;
     showToast('商品を更新しました');
   } else {
     const p = { id: uid(), name, categoryId, memo, imageDataUrl: pendingImageDataUrl || null, order: products.length };
     products.push(p);
     await dbPut(STORES.products, p);
+    savedProductId = p.id;
     showToast('商品を追加しました');
   }
+
+  await saveProductPrices(savedProductId);
 
   closeModal('productModal');
   render();
@@ -764,7 +844,7 @@ document.getElementById('deleteTemplateBtn').addEventListener('click', async () 
 
 document.getElementById('cancelTemplateBtn').addEventListener('click', () => closeModal('templateModal'));
 
-// ── Price Modal ──
+// ── Price Modal（価格タブの「価格を追加」ボタン用） ──
 function openPriceModal(productId) {
   editingPriceProductId = productId;
   const p = products.find((x) => x.id === productId);
@@ -784,7 +864,6 @@ document.getElementById('savePriceBtn').addEventListener('click', async () => {
   if (!storeId) { showToast('店舗を選択してください'); return; }
   if (isNaN(amount) || amount < 0) { showToast('価格を正しく入力してください'); return; }
 
-  // Update existing or add
   const existing = prices.find((p) => p.productId === editingPriceProductId && p.storeId === storeId);
   if (existing) {
     existing.price = amount;
@@ -803,7 +882,7 @@ document.getElementById('savePriceBtn').addEventListener('click', async () => {
 
 document.getElementById('cancelPriceBtn').addEventListener('click', () => closeModal('priceModal'));
 
-// ── Share ──
+// ── Share: Canvas で画像合成 ──
 document.getElementById('shareListBtn').addEventListener('click', () => {
   const pending = shoppingList.filter((s) => !s.done);
   if (!pending.length) { showToast('リストが空です'); return; }
@@ -824,24 +903,184 @@ document.getElementById('shareListBtn').addEventListener('click', () => {
 
 document.getElementById('doShareBtn').addEventListener('click', async () => {
   const pending = shoppingList.filter((s) => !s.done);
-  const lines = pending.map((s) => {
-    const p = products.find((x) => x.id === s.productId);
-    return '☐ ' + (p ? p.name : '不明');
-  });
-  const text = '【買い物リスト】\n' + lines.join('\n');
+  if (!pending.length) return;
 
-  if (navigator.share) {
-    try {
-      await navigator.share({ title: '買い物リスト', text });
-    } catch (e) {
-      if (e.name !== 'AbortError') showToast('共有に失敗しました');
+  // Canvas で買い物リスト画像を合成
+  try {
+    const imageBlob = await buildShareImage(pending);
+    const text = '【買い物リスト】\n' + pending.map((s) => {
+      const p = products.find((x) => x.id === s.productId);
+      return '☐ ' + (p ? p.name : '不明');
+    }).join('\n');
+
+    if (navigator.share && navigator.canShare) {
+      const file = new File([imageBlob], 'kaimono-list.png', { type: 'image/png' });
+      const shareData = { title: '買い物リスト', text, files: [file] };
+      if (navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData);
+          closeModal('shareModal');
+          return;
+        } catch (e) {
+          if (e.name === 'AbortError') { closeModal('shareModal'); return; }
+        }
+      }
     }
-  } else {
-    await navigator.clipboard.writeText(text).catch(() => {});
-    showToast('リストをコピーしました');
+    // ファイル共有非対応の場合は画像をダウンロード
+    const url = URL.createObjectURL(imageBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'kaimono-list.png';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('画像を保存しました（LINEなどで送ってください）');
+    closeModal('shareModal');
+  } catch (err) {
+    // Canvas 失敗時はテキストのみ共有
+    const text = '【買い物リスト】\n' + pending.map((s) => {
+      const p = products.find((x) => x.id === s.productId);
+      return '☐ ' + (p ? p.name : '不明');
+    }).join('\n');
+    if (navigator.share) {
+      try { await navigator.share({ title: '買い物リスト', text }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(text).catch(() => {});
+      showToast('リストをコピーしました');
+    }
+    closeModal('shareModal');
   }
-  closeModal('shareModal');
 });
+
+// Canvas で商品カード画像を1枚に合成する
+async function buildShareImage(items) {
+  const CARD_W = 480;
+  const CARD_H = 88;
+  const THUMB = 64;
+  const PADDING = 12;
+  const HEADER_H = 56;
+  const FOOTER_H = 32;
+  const totalH = HEADER_H + items.length * CARD_H + FOOTER_H;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = CARD_W;
+  canvas.height = totalH;
+  const ctx = canvas.getContext('2d');
+
+  // 背景
+  ctx.fillStyle = '#FAFAF8';
+  ctx.fillRect(0, 0, CARD_W, totalH);
+
+  // ヘッダー
+  ctx.fillStyle = '#3D6B4F';
+  ctx.fillRect(0, 0, CARD_W, HEADER_H);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('買い物リスト', PADDING + 4, HEADER_H / 2);
+
+  // 商品カード
+  for (let i = 0; i < items.length; i++) {
+    const s = items[i];
+    const p = products.find((x) => x.id === s.productId);
+    const name = p ? p.name : '不明';
+    const memo = p ? (p.memo || '') : '';
+    const cheapest = p ? getCheapestPrice(p.id) : null;
+    const y = HEADER_H + i * CARD_H;
+
+    // カード背景
+    ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#F7F5F0';
+    ctx.fillRect(0, y, CARD_W, CARD_H);
+
+    // 区切り線
+    ctx.strokeStyle = '#E4E0D8';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, y + CARD_H);
+    ctx.lineTo(CARD_W, y + CARD_H);
+    ctx.stroke();
+
+    // サムネイル枠
+    const thumbX = PADDING;
+    const thumbY = y + (CARD_H - THUMB) / 2;
+    ctx.fillStyle = '#F2F0EB';
+    roundRect(ctx, thumbX, thumbY, THUMB, THUMB, 8);
+    ctx.fill();
+
+    // 商品画像
+    if (p && p.imageDataUrl) {
+      try {
+        const img = await loadImage(p.imageDataUrl);
+        ctx.save();
+        roundRect(ctx, thumbX, thumbY, THUMB, THUMB, 8);
+        ctx.clip();
+        ctx.drawImage(img, thumbX, thumbY, THUMB, THUMB);
+        ctx.restore();
+      } catch {}
+    } else {
+      // 画像なしアイコン
+      ctx.fillStyle = '#B0AA9F';
+      ctx.font = '28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🛍', thumbX + THUMB / 2, thumbY + THUMB / 2);
+      ctx.textAlign = 'left';
+    }
+
+    // テキスト
+    const textX = thumbX + THUMB + PADDING;
+    ctx.fillStyle = '#1C1C1A';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textBaseline = 'top';
+    ctx.fillText(name, textX, y + 18);
+
+    if (memo) {
+      ctx.fillStyle = '#7A7568';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(memo, textX, y + 38);
+    }
+
+    if (cheapest) {
+      ctx.fillStyle = '#C17A3A';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(`最安値: ${cheapest.storeName} ${cheapest.price.toLocaleString()}円`, textX, y + (memo ? 54 : 40));
+    }
+  }
+
+  // フッター
+  const fy = HEADER_H + items.length * CARD_H;
+  ctx.fillStyle = '#F2F0EB';
+  ctx.fillRect(0, fy, CARD_W, FOOTER_H);
+  ctx.fillStyle = '#B0AA9F';
+  ctx.font = '11px sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  ctx.fillText('買い物メモ', CARD_W - PADDING, fy + FOOTER_H / 2);
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
 
 document.getElementById('cancelShareBtn').addEventListener('click', () => closeModal('shareModal'));
 
@@ -892,7 +1131,6 @@ document.getElementById('newStoreInput').addEventListener('keydown', (e) => {
 // ── Export ──
 document.getElementById('exportBtn').addEventListener('click', async () => {
   const data = { products, categories, storeNames, templates, prices, shoppingList, exportedAt: Date.now() };
-  // Remove large imageDataUrl for readability but keep it
   const json = JSON.stringify(data);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -950,43 +1188,6 @@ document.getElementById('clearAllBtn').addEventListener('click', async () => {
   showToast('全データを削除しました');
   render();
 });
-
-// ── Drag Sort ──
-function initDragSort(container, cardSelector, onReorder) {
-  let dragging = null;
-  let dragOverEl = null;
-
-  container.querySelectorAll(cardSelector).forEach((card) => {
-    card.addEventListener('dragstart', (e) => {
-      if (!sortMode) { e.preventDefault(); return; }
-      dragging = card;
-      setTimeout(() => card.style.opacity = '0.4', 0);
-      e.dataTransfer.effectAllowed = 'move';
-    });
-
-    card.addEventListener('dragend', () => {
-      card.style.opacity = '';
-      dragging = null;
-      container.querySelectorAll(cardSelector).forEach((c) => c.classList.remove('drag-over'));
-      const ids = [...container.querySelectorAll(cardSelector)].map((c) => c.dataset.id);
-      onReorder(ids);
-    });
-
-    card.addEventListener('dragover', (e) => {
-      if (!sortMode || !dragging || dragging === card) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (dragOverEl !== card) {
-        container.querySelectorAll(cardSelector).forEach((c) => c.classList.remove('drag-over'));
-        dragOverEl = card;
-        card.classList.add('drag-over');
-        const rect = card.getBoundingClientRect();
-        const after = e.clientY > rect.top + rect.height / 2;
-        container.insertBefore(dragging, after ? card.nextSibling : card);
-      }
-    });
-  });
-}
 
 // ── Helpers ──
 function escHtml(str) {
