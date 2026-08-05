@@ -13,7 +13,7 @@ if ('serviceWorker' in navigator) {
 
 // ── DB ──
 const DB_NAME = 'kaimono-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORES = {
   products: 'products',
   categories: 'categories',
@@ -22,6 +22,18 @@ const STORES = {
   prices: 'prices',
   shoppingList: 'shoppingList',
 };
+const DATA_STORES = Object.values(STORES);
+
+// 同期のための内部ストア。バックアップの書き出し・復元の対象にはしない。
+//   tombstones … 消したものの墓標。これが無いと、買い終わってリストから消した品物が、
+//                まだ持っている端末から押し戻されて復活する。
+//   _sync      … 取り込み前の控えなど、同期まわりの大きめの控え置き場。
+//                商品画像込みだと localStorage に収まらないのでこちらに置く。
+const TOMB_STORE = 'tombstones';
+const SYNC_STORE = '_sync';
+
+// 墓標は同期し終われば用済みだが、長く開いていなかった端末が後から繋がる場合に備えて1年持つ。
+const TOMB_KEEP_MS = 365 * 24 * 60 * 60 * 1000;
 
 let db;
 
@@ -30,18 +42,10 @@ function openDB() {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (e) => {
       const d = e.target.result;
-      if (!d.objectStoreNames.contains(STORES.products))
-        d.createObjectStore(STORES.products, { keyPath: 'id' });
-      if (!d.objectStoreNames.contains(STORES.categories))
-        d.createObjectStore(STORES.categories, { keyPath: 'id' });
-      if (!d.objectStoreNames.contains(STORES.storeNames))
-        d.createObjectStore(STORES.storeNames, { keyPath: 'id' });
-      if (!d.objectStoreNames.contains(STORES.templates))
-        d.createObjectStore(STORES.templates, { keyPath: 'id' });
-      if (!d.objectStoreNames.contains(STORES.prices))
-        d.createObjectStore(STORES.prices, { keyPath: 'id' });
-      if (!d.objectStoreNames.contains(STORES.shoppingList))
-        d.createObjectStore(STORES.shoppingList, { keyPath: 'id' });
+      [...DATA_STORES, TOMB_STORE, SYNC_STORE].forEach((name) => {
+        if (!d.objectStoreNames.contains(name))
+          d.createObjectStore(name, { keyPath: 'id' });
+      });
     };
     req.onsuccess = (e) => { db = e.target.result; resolve(); };
     req.onerror = () => reject(req.error);
@@ -57,7 +61,17 @@ function dbAll(storeName) {
   });
 }
 
-function dbPut(storeName, obj) {
+function dbGet(storeName, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const req = tx.objectStore(storeName).get(id);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ── 生の読み書き（墓標を動かさない。同期の内部処理用） ──
+function dbRawPut(storeName, obj) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const req = tx.objectStore(storeName).put(obj);
@@ -66,7 +80,7 @@ function dbPut(storeName, obj) {
   });
 }
 
-function dbDelete(storeName, id) {
+function dbRawDelete(storeName, id) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const req = tx.objectStore(storeName).delete(id);
@@ -75,13 +89,55 @@ function dbDelete(storeName, id) {
   });
 }
 
-function dbClear(storeName) {
-  return new Promise((resolve, reject) => {
+// ── アプリが使う入口。ここで墓標の面倒を見るので、呼ぶ側は今までどおりでよい ──
+function tombKey(storeName, id) { return `${storeName}:${id}`; }
+
+async function dbPut(storeName, obj) {
+  await dbRawPut(storeName, obj);
+  // 消したものを作り直したときは墓標を取り下げる
+  if (DATA_STORES.includes(storeName)) await dbRawDelete(TOMB_STORE, tombKey(storeName, obj.id));
+  notifyLocalChange();
+}
+
+async function dbDelete(storeName, id) {
+  await dbRawDelete(storeName, id);
+  // 同期を使っていなくても記録しておく（軽いし、後からログインしても筋が通る）
+  if (DATA_STORES.includes(storeName)) {
+    await dbRawPut(TOMB_STORE, { id: tombKey(storeName, id), store: storeName, itemId: id, at: Date.now() });
+  }
+  notifyLocalChange();
+}
+
+async function dbClear(storeName) {
+  if (DATA_STORES.includes(storeName)) {
+    const at = Date.now();
+    for (const item of await dbAll(storeName)) {
+      await dbRawPut(TOMB_STORE, { id: tombKey(storeName, item.id), store: storeName, itemId: item.id, at });
+    }
+  }
+  await new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const req = tx.objectStore(storeName).clear();
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
   });
+  notifyLocalChange();
+}
+
+// sync.js が読み込まれていれば同期を予約させる。
+// 未ログイン／sync.js 無しなら何も起きない＝導入前とまったく同じ挙動。
+function notifyLocalChange() {
+  if (typeof window.kaimonoOnLocalChange === 'function') {
+    try { window.kaimonoOnLocalChange(); } catch (e) {}
+  }
+}
+
+async function pruneTombstones() {
+  const limit = Date.now() - TOMB_KEEP_MS;
+  for (const t of await dbAll(TOMB_STORE)) {
+    if (!t || !DATA_STORES.includes(t.store)) continue; // 墓標以外の行は触らない
+    if (!(Number(t.at) > limit)) await dbRawDelete(TOMB_STORE, t.id);
+  }
 }
 
 // ── State ──
@@ -1211,6 +1267,11 @@ function render() {
 // ── Init ──
 (async () => {
   await openDB();
+  await pruneTombstones();
   await loadAll();
   render();
+  // sync.js が読み込まれていれば、ここから同期を始めさせる
+  if (typeof window.kaimonoOnReady === 'function') {
+    try { window.kaimonoOnReady(); } catch (e) {}
+  }
 })();

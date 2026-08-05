@@ -135,6 +135,43 @@
       </div>
 
       <div class="settings-group">
+        <div class="section-header"><span class="section-title">複数端末で同期</span></div>
+        <p class="sync-status" id="sync-status">ログインしていません（この端末だけに保存されます）</p>
+
+        <div id="sync-login-form">
+          <div class="add-tag-row mt-2">
+            <input class="form-input" type="email" id="sync-email" placeholder="メールアドレス"
+                   autocomplete="username" inputmode="email">
+          </div>
+          <div class="add-tag-row mt-2">
+            <input class="form-input" type="password" id="sync-password" placeholder="パスワード（8文字以上）"
+                   autocomplete="current-password">
+          </div>
+          <div class="sync-actions mt-2">
+            <button class="btn btn-sm btn-primary" style="width:auto;" id="sync-do-login">ログイン</button>
+            <button class="btn btn-sm" style="width:auto;" id="sync-do-signup">新規登録</button>
+          </div>
+          <p class="sync-hint" id="sync-login-msg"></p>
+          <p class="sync-hint">
+            はじめての端末では「新規登録」でアカウントを作り、2台目以降は同じメールとパスワードで「ログイン」します。
+          </p>
+        </div>
+
+        <div id="sync-logged-in" class="hidden">
+          <div class="sync-actions mt-2">
+            <button class="btn btn-sm btn-primary" style="width:auto;" id="sync-now-btn">今すぐ同期</button>
+            <button class="btn btn-sm" style="width:auto;" id="sync-rollback-btn">取り込み前に戻す</button>
+            <button class="btn btn-sm" style="width:auto;" id="sync-logout-btn">ログアウト</button>
+          </div>
+        </div>
+
+        <p class="sync-hint">
+          ログインすると、同じアカウントでログインした端末どうしで買い物メモが共有されます。<br>
+          オフラインでも普通に使えて、通信が戻ったときにまとめて送られます。
+        </p>
+      </div>
+
+      <div class="settings-group">
         <div class="section-header"><span class="section-title">データ管理</span></div>
         <div class="settings-item" id="exportBtn">
           <div class="settings-item-icon green">
@@ -297,5 +334,6 @@
 <div class="toast" id="toast"></div>
 
 <script src="app.js"></script>
+<script src="sync.js"></script>
 </body>
 </html>
