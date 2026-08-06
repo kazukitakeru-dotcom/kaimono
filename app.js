@@ -170,6 +170,14 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
+/** 端末の暦での日付。
+ *  toISOString() は UTC なので、日本時間だと 0時〜9時のあいだ前日の日付になる。 */
+function localDateStr(d = new Date()) {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
 // ── Load all data ──
 async function loadAll() {
   [products, categories, storeNames, templates, prices, shoppingList] = await Promise.all([
@@ -1200,7 +1208,7 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `kaimono-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `kaimono-backup-${localDateStr()}.json`;
   a.click();
   URL.revokeObjectURL(url);
   showToast('バックアップを保存しました');
