@@ -61,6 +61,14 @@ function dbAll(storeName) {
   });
 }
 
+function dbCount(storeName) {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(storeName, 'readonly').objectStore(storeName).count();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 function dbGet(storeName, id) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
