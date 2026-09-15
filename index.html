@@ -138,24 +138,28 @@
         <div class="section-header"><span class="section-title">複数端末で同期</span></div>
         <p class="sync-status" id="sync-status">ログインしていません（この端末だけに保存されます）</p>
 
-        <div id="sync-login-form">
+        <!-- 入力欄は必ず <form> の中に置くこと。
+             iPhone / Mac のパスワード保存（iCloudキーチェーン）は submit を合図に
+             「保存しますか？」を出すので、div のままだと候補として出てこない。
+             ログインは type="submit"、それ以外のボタンは type="button" にする。 -->
+        <form id="sync-login-form" autocomplete="on" style="margin:0">
           <div class="add-tag-row mt-2">
-            <input class="form-input" type="email" id="sync-email" placeholder="メールアドレス"
+            <input class="form-input" type="email" id="sync-email" name="email" placeholder="メールアドレス"
                    autocomplete="username" inputmode="email">
           </div>
           <div class="add-tag-row mt-2">
-            <input class="form-input" type="password" id="sync-password" placeholder="パスワード（8文字以上）"
+            <input class="form-input" type="password" id="sync-password" name="password" placeholder="パスワード（8文字以上）"
                    autocomplete="current-password">
           </div>
           <div class="sync-actions mt-2">
-            <button class="btn btn-sm btn-primary" style="width:auto;" id="sync-do-login">ログイン</button>
-            <button class="btn btn-sm" style="width:auto;" id="sync-do-signup">新規登録</button>
+            <button class="btn btn-sm btn-primary" style="width:auto;" id="sync-do-login" type="submit">ログイン</button>
+            <button class="btn btn-sm" style="width:auto;" id="sync-do-signup" type="button">新規登録</button>
           </div>
           <p class="sync-hint" id="sync-login-msg"></p>
           <p class="sync-hint">
             はじめての端末では「新規登録」でアカウントを作り、2台目以降は同じメールとパスワードで「ログイン」します。
           </p>
-        </div>
+        </form>
 
         <div id="sync-logged-in" class="hidden">
           <div class="sync-actions mt-2">
